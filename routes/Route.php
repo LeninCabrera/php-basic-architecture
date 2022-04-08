@@ -1,82 +1,137 @@
 <?php
-
+// REFERENCE: https://github.com/steampixel/simplePHPRouter.git
 namespace Routes;
 
 class Route {
 
-    public static function get($route, $function) {
-        //get method, don't continue if method is not the 
-        $method = $_SERVER['REQUEST_METHOD'];
-        if($method !== 'GET'){ return; }
+  private static $routes = Array();
+  private static $pathNotFound = null;
+  private static $methodNotAllowed = null;
 
-        //check the structure of the url
-        $struct = self::checkStructure($route, $_SERVER['REQUEST_URI']);
+  /**
+    * Function used to add a new route
+    * @param string $expression    Route string or expression
+    * @param callable $function    Function to call if route with allowed method is found
+    * @param string|array $method  Either a string of allowed method or an array with string values
+    *
+    */
+  public static function add($expression, $function, $method = 'get'){
+    array_push(self::$routes, Array(
+      'expression' => $expression,
+      'function' => $function,
+      'method' => $method
+    ));
+  }
 
-        //if the requested url matches the one from the route
-        //get the url params and run the callback passing the params
-        if($struct){
-            $params = self::getParams($route, $_SERVER['REQUEST_URI']);
-            $function->__invoke($params);
+  public static function getAll(){
+    return self::$routes;
+  }
 
-            //prevent checking all other routes
-            die();
+  public static function pathNotFound($function) {
+    self::$pathNotFound = $function;
+  }
+
+  public static function methodNotAllowed($function) {
+    self::$methodNotAllowed = $function;
+  }
+
+  public static function run($basepath = '', $case_matters = false, $trailing_slash_matters = false, $multimatch = false) {
+
+    // The basepath never needs a trailing slash
+    // Because the trailing slash will be added using the route expressions
+    $basepath = rtrim($basepath, '/');
+
+    // Parse current URL
+    $parsed_url = parse_url($_SERVER['REQUEST_URI']);
+
+    $path = '/';
+
+    // If there is a path available
+    if (isset($parsed_url['path'])) {
+      // If the trailing slash matters
+  	  if ($trailing_slash_matters) {
+  		  $path = $parsed_url['path'];
+  	  } else {
+        // If the path is not equal to the base path (including a trailing slash)
+        if($basepath.'/'!=$parsed_url['path']) {
+          // Cut the trailing slash away because it does not matters
+          $path = rtrim($parsed_url['path'], '/');
+        } else {
+          $path = $parsed_url['path'];
         }
+  	  }
     }
 
-    public static function urlToArray($url1, $url2) {
-        //convert route and requested url to an array
-        //remove empty values caused by slashes
-        //and refresh the indexes of the array
-        $a = array_values(array_filter(explode('/', $url1), function($val){ return $val !== ''; }));
-        $b = array_values(array_filter(explode('/', $url2), function($val){ return $val !== ''; }));
+  	$path = urldecode($path);
 
-        //debug mode for development
-        if(true) array_shift($b);
-        return array($a, $b);
-    }
+    // Get current request method
+    $method = $_SERVER['REQUEST_METHOD'];
 
-    public static function checkStructure($url1, $url2) {
-        list($a, $b) = self::urlToArray($url1, $url2);
+    $path_match_found = false;
 
-        //if the sizes of the arrays don't match, their structures don't match either
-        if(sizeof($a) !== sizeof($b)){
-            return false;
-        }
+    $route_match_found = false;
 
-        //for each value from the route
-        foreach ($a as $key => $value){
+    foreach (self::$routes as $route) {
 
-            //if the static values from the url don't match
-            // or the dynamic values start with a '?' character
-            //their structures don't match
-            if($value[0] !== ':' && $value !== $b[$key] || $value[0] === ':' && $b[$key][0] === '?'){
-                return false;
+      // If the method matches check the path
+
+      // Add basepath to matching string
+      if ($basepath != '' && $basepath != '/') {
+        $route['expression'] = '('.$basepath.')'.$route['expression'];
+      }
+
+      // Add 'find string start' automatically
+      $route['expression'] = '^'.$route['expression'];
+
+      // Add 'find string end' automatically
+      $route['expression'] = $route['expression'].'$';
+
+      // Check path match
+      if (preg_match('#'.$route['expression'].'#'.($case_matters ? '' : 'i').'u', $path, $matches)) {
+        $path_match_found = true;
+
+        // Cast allowed method to array if it's not one already, then run through all methods
+        foreach ((array)$route['method'] as $allowedMethod) {
+            // Check method match
+          if (strtolower($method) == strtolower($allowedMethod)) {
+            array_shift($matches); // Always remove first element. This contains the whole string
+
+            if ($basepath != '' && $basepath != '/') {
+              array_shift($matches); // Remove basepath
             }
-        }
 
-        //else, their structures match
-        return true;
-    }
-
-    public static function getParams($url1, $url2) {
-        list($a, $b) = self::urlToArray($url1, $url2);
-
-        $params = array('params' => array(), 'query' => array());
-
-        //foreach value from the route
-        foreach($a as $key => $value){
-            //if it's a dynamic value
-            if($value[0] == ':'){
-                //get the value from the requested url and throw away the query string (if any)
-                $param = explode('?', $b[$key])[0];
-                $params['params'][substr($value, 1)] = $param;
+            if($return_value = call_user_func_array($route['function'], $matches)) {
+              echo $return_value;
             }
+
+            $route_match_found = true;
+
+            // Do not check other routes
+            break;
+          }
         }
+      }
 
-        //get the last item from the request url and parse the query string from it (if any)
-        $queryString = explode('?', end($b))[1];
-        parse_str($queryString, $params['query']);
+      // Break the loop if the first found route is a match
+      if($route_match_found&&!$multimatch) {
+        break;
+      }
 
-        return $params;
     }
+
+    // No matching route was found
+    if (!$route_match_found) {
+      // But a matching path exists
+      if ($path_match_found) {
+        if (self::$methodNotAllowed) {
+          call_user_func_array(self::$methodNotAllowed, Array($path,$method));
+        }
+      } else {
+        if (self::$pathNotFound) {
+          call_user_func_array(self::$pathNotFound, Array($path));
+        }
+      }
+
+    }
+  }
 }
