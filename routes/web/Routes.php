@@ -1,15 +1,15 @@
 <?php
 
 use Routes\Route;
-use App\Controllers\HomeController;
 use App\Controllers\UserController;
-
-Route::add('/', function() {
-    HomeController::load('home-module');
-});
+use App\Controllers\ModulesController;
 
 Route::add('/users', function() {
     UserController::load('users-module');
+});
+
+Route::add('/modules', function() {
+    ModulesController::load('modules-module');
 });
 
 Route::run('/');
