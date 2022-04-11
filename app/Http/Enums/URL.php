@@ -7,5 +7,5 @@ enum URL: string {
     case RedirectUri    = 'https://www.zoho.com';
     case AccountsUrl    = 'https://accounts.zoho.com';
     case ApiDomain      = 'https://www.zohoapis.com/crm/v2/';
-    case AccessToken    = '1000.888092e86a804cb0faafda937c051f7c.95927b0eb2c30403b6aaf512870f2bcb';
+    case AccessToken    = '1000.1e5ad4f6daf03746f29fe2f9ccf953fc.8e6d10b97fc015086d247a8f9bdaca00';
 }

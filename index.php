@@ -3,6 +3,7 @@
 // Autoload files using the Composer autoloader.
 require_once __DIR__ . '/vendor/autoload.php';
 
+// Autoload files app
 spl_autoload_register(function ($class) {
 
     // project-specific namespace prefix
@@ -32,5 +33,6 @@ spl_autoload_register(function ($class) {
     }
 });
 
+// Require routes file
 require_once __DIR__ . '/routes/Route.php';
 require_once __DIR__ . '/routes/web/routes.php';
