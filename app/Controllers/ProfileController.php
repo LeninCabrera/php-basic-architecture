@@ -3,8 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\Profile;
-use App\Http\RequestsV2\ProfileRequest;
-use App\Http\RequestsV2\BaseFetchRequest;
+use App\Http\RequestsV3\ProfileRequest;
+use App\Http\RequestsV3\BaseFetchRequest;
 
 class ProfileController extends Controller {
     use BaseFetchRequest, ProfileRequest;

@@ -6,7 +6,8 @@
     "require": {
         "php": ">=7.0",
         "guzzlehttp/guzzle": "^7.0.1",
-        "nategood/httpful": "dev-master"
+        "nategood/httpful": "dev-master",
+        "symfony/http-client": "6.1.x-dev"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5.10"
